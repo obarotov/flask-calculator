@@ -1,20 +1,24 @@
 class HistoryManager:
-    """Handles reading and writing calculation history to a file."""
-
     def __init__(self, filepath='history.txt'):
         self.filepath = filepath
 
     def save(self, expression, result):
-        """Append one entry to the history file."""
-        # TODO: Task 3 — implement this method
-        pass
+        with open(self.filepath, mode='a') as file:
+            file.write(f"{expression}|{result}\n")
 
     def load(self):
-        """Read all lines from the history file. Return empty list if file not found."""
-        # TODO: Task 4 — implement this method
-        pass
+        try:
+            with open(self.filepath, mode='r') as file:
+                lines = file.readlines()
+            
+            history = []
+            for line in reversed(lines):
+                if "|" in line:
+                    exp, res = line.strip().split("|")
+                    history.append({"expression": exp, "result": res})
+            return history
+        except FileNotFoundError:
+            return []
 
     def clear(self):
-        """Erase all content from the history file."""
-        # TODO: Bonus — implement this method
-        pass
+        open(self.filepath, 'w').close()

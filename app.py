@@ -14,7 +14,28 @@ def index():
     error = None
 
     if request.method == 'POST':
-        pass  # TODO: Task 2 — handle form submission
+        try:
+            operation = request.form.get('operation')
+            num1_raw = request.form.get('num1')
+            num2_raw = request.form.get('num2')
+
+            if not num1_raw:
+                raise ValueError("First number is required")
+            num1 = float(num1_raw)
+            num2 = float(num2_raw) if num2_raw else None
+
+            result = calc.calculate(operation, num1, num2)
+            expression = calc.format_expression(operation, num1, num2)
+
+            if result is not None:
+                history.save(expression, result)
+
+        except ZeroDivisionError:
+            error = "Division by zero is not allowed."
+        except ValueError as e:
+            error = str(e)
+        except Exception:
+            error = "An unexpected error occured"
 
     return render_template('index.html',
                            result=result,
@@ -25,15 +46,18 @@ def index():
 
 @app.route('/history')
 def history_page():
-    entries = history.load()
+    manager = HistoryManager()
+    entries = manager.load()
     return render_template('history.html', entries=entries)
 
 
 @app.route('/clear-history', methods=['POST'])
 def clear_history():
-    # TODO: Bonus
-    pass
-
+    try:
+        history.clear()
+        return redirect(url_for('history_page'))
+    except Exception as e:
+        return redirect(url_for('history_page'))
 
 @app.errorhandler(404)
 def not_found(e):

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>History</title>
+    <style>
+        body { background: #0f0f0f; color: #eee; font-family: sans-serif; display: flex; justify-content: center; padding: 2rem; }
+        .container { width: 100%; max-width: 500px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+        .history-card { background: #1a1a1a; border-radius: 12px; border: 1px solid #333; overflow: hidden; }
+        .item { padding: 1rem; border-bottom: 1px solid #333; display: flex; justify-content: space-between; }
+        .item:last-child { border-bottom: none; }
+        .exp { color: #888; font-family: monospace; }
+        .res { color: #1DB954; font-weight: bold; }
+        .empty { padding: 2rem; text-align: center; color: #555; }
+        .btn { color: #ff4444; background: none; border: 1px solid #442222; padding: 5px 10px; border-radius: 6px; cursor: pointer; text-decoration: none; font-size: 0.8rem; }
+        .back { color: #888; text-decoration: none; font-size: 0.9rem; margin-top: 1rem; display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>History</h1>
+            {% if entries %}
+            <form action="{{ url_for('clear_history') }}" method="POST">
+                <button class="btn">Clear All</button>
+            </form>
+            {% endif %}
+        </div>
+
+        <div class="history-card">
+            {% for entry in entries %}
+            <div class="item">
+                <span class="exp">{{ entry.expression }}</span>
+                <span class="res">= {{ entry.result }}</span>
+            </div>
+            {% else %}
+            <div class="empty">No calculations yet.</div>
+            {% endfor %}
+        </div>
+        
+        <a href="{{ url_for('index') }}" class="back">← Back to Calculator</a>
+    </div>
+</body>
+</html>
