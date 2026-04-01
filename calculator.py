@@ -8,6 +8,14 @@ class Calculator:
     def calculate(self, operation, num1, num2=None):
         if operation not in self.SUPPORTED_OPERATIONS:
             raise ValueError("Unsupported operation")
+       
+        num1 = float(num1)
+        binary_ops = ['+', '-', '*', '/', 'pow']
+        
+        if operation in binary_ops:
+            if num2 is None:
+                raise ValueError("Second number is required for this operation")
+            num2 = float(num2)
 
         operations = {
             '+': lambda: num1 + num2,

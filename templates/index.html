@@ -234,7 +234,7 @@
                 <p class="stat-label">Final Result</p>
                 <p class="stat-value value-green">{{ result }}</p>
             </div>
-        </div>
+        </div>  
         {% endif %}
 
         <a href="{{ url_for('history_page') }}" class="history-btn">
@@ -242,22 +242,5 @@
         </a>
     </div>
 </div>
-
-<script>
-    const opSelect = document.getElementById('operation');
-    const secInput = document.getElementById('secondNumberDiv');
-    const unary = ['sqrt', 'sin', 'cos', 'tan', 'log', 'ln', 'abs', 'ceil', 'floor', 'exp'];
-
-    function toggleInputs() {
-        const val = opSelect.value.toLowerCase();
-        const isUnary = unary.includes(val);
-        secInput.style.opacity = isUnary ? '0.3' : '1';
-        document.getElementById('num2').disabled = isUnary;
-    }
-
-    opSelect.addEventListener('change', toggleInputs);
-    window.onload = toggleInputs;
-</script>
-
 </body>
 </html>

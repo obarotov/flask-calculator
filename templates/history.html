@@ -10,7 +10,7 @@
         .history-card { background: #1a1a1a; border-radius: 12px; border: 1px solid #333; overflow: hidden; }
         .item { padding: 1rem; border-bottom: 1px solid #333; display: flex; justify-content: space-between; }
         .item:last-child { border-bottom: none; }
-        .exp { color: #888; font-family: monospace; }
+        .exp { color: #fff; font-family: monospace; }
         .res { color: #1DB954; font-weight: bold; }
         .empty { padding: 2rem; text-align: center; color: #555; }
         .btn { color: #ff4444; background: none; border: 1px solid #442222; padding: 5px 10px; border-radius: 6px; cursor: pointer; text-decoration: none; font-size: 0.8rem; }
@@ -32,7 +32,7 @@
             {% for entry in entries %}
             <div class="item">
                 <span class="exp">{{ entry.expression }}</span>
-                <span class="res">= {{ entry.result }}</span>
+                <span class="res"> {{ entry.result }}</span>
             </div>
             {% else %}
             <div class="empty">No calculations yet.</div>
