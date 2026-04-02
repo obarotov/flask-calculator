@@ -136,69 +136,139 @@ def history_page():
     entries = manager.load()
     return render_template('history.html', entries=entries)
 
-@app.route('/clear-history')
-def clear_history():
+@app.route('/clear-session')
+def clear_session():
     if 'session_id' in session:
         manager = HistoryManager(session['session_id'])
         manager.clear()
+        session.clear()
     return redirect(url_for('index'))
 
 @app.route('/stats/chart')
 def stats_chart():
+    import matplotlib.patches as mpatches
+    import numpy as np
+
     manager = HistoryManager(session['session_id'])
     entries = manager.load()
-    
+
     results = []
     for entry in entries:
         try:
-            result_value = float(entry["result"])
-            results.append(result_value)
+            results.append(float(entry["result"]))
         except (ValueError, KeyError):
             continue
-    
+
+    BG    = '#0a0a0a'
+    CARD  = '#161616'
+    GREEN = '#1DB954'
+    AMBER = '#f59e0b'
+    MUTED = '#6b6b6b'
+    SOFT  = '#a0a0a0'
+    WHITE = '#f0f0f0'
+    GRID  = '#1e1e1e'
+
+    fig = plt.figure(figsize=(12, 6), facecolor=BG)
     if not results:
-        fig, ax = plt.subplots(figsize=(10, 6))
-        ax.text(0.5, 0.5, 'No calculation data available yet.\nMake some calculations first!', 
-                horizontalalignment='center', verticalalignment='center',
-                transform=ax.transAxes, fontsize=14, color='gray')
-        ax.set_title('Calculation Results Over Time')
-        ax.set_xlabel('Calculation #')
-        ax.set_ylabel('Result')
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
+        ax = fig.add_axes([0.08, 0.14, 0.88, 0.72], facecolor=CARD)
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.text(0.5, 0.55, 'No data yet',
+                ha='center', va='center', transform=ax.transAxes,
+                fontsize=16, fontweight='bold', color=SOFT)
+        ax.text(0.5, 0.42, 'Make some calculations and come back!',
+                ha='center', va='center', transform=ax.transAxes,
+                fontsize=10, color=MUTED)
+        fig.text(0.08, 0.93, 'Calculation Results Over Time',
+                 fontsize=14, fontweight='bold', color=WHITE)
+
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', dpi=130, bbox_inches='tight', facecolor=BG)
+        buf.seek(0)
+        plt.close(fig)
+        return send_file(buf, mimetype='image/png')
+
+    x       = list(range(1, len(results) + 1))
+    avg     = sum(results) / len(results)
+    rolling = [
+        sum(results[max(0, i - 2):i + 1]) / len(results[max(0, i - 2):i + 1])
+        for i in range(len(results))
+    ]
+
+    ax = fig.add_axes([0.08, 0.14, 0.88, 0.72], facecolor=CARD)
+
+    ax.fill_between(x, results, alpha=0.15, color=GREEN, linewidth=0)
+
+    ax.plot(x, results, color=GREEN, linewidth=2.5, zorder=4,
+            solid_capstyle='round')
+
+    dot_size = 55 if len(results) <= 30 else 20
+    ax.scatter(x, results, color=GREEN, s=dot_size, zorder=5,
+               edgecolors=BG, linewidths=1.8)
+
+    ax.plot(x, rolling, color=AMBER, linewidth=1.5,
+            linestyle='--', dashes=(5, 4), zorder=3, alpha=0.85)
+
+    ax.axhline(avg, color=MUTED, linewidth=1, linestyle=':', alpha=0.5)
+
+    ax.annotate(f'{results[-1]:g}',
+                xy=(x[-1], results[-1]),
+                xytext=(7, 0), textcoords='offset points',
+                color=GREEN, fontsize=9, fontweight='bold', va='center')
+
+    if len(results) >= 3:
+        max_i = results.index(max(results))
+        min_i = results.index(min(results))
+        for idx, label, offset in [(max_i, f'↑ {results[max_i]:g}', (0, 10)),
+                                   (min_i, f'↓ {results[min_i]:g}', (0, -14))]:
+            ax.annotate(label,
+                        xy=(x[idx], results[idx]),
+                        xytext=offset, textcoords='offset points',
+                        color=SOFT, fontsize=8, ha='center')
+
+    ax.grid(True, which='major', color=GRID, linewidth=0.8, linestyle='-')
+    ax.set_axisbelow(True)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+    ax.tick_params(colors=SOFT, labelsize=9, length=0, pad=6)
+    for label in ax.get_xticklabels() + ax.get_yticklabels():
+        label.set_color(SOFT)
+
+    if len(results) <= 20:
+        ax.set_xticks(x)
+        ax.set_xticklabels([str(i) for i in x], fontsize=8)
     else:
-        fig, ax = plt.subplots(figsize=(10, 6))
-        
-        x_values = list(range(1, len(results) + 1))
-        ax.plot(x_values, results, marker='o', linewidth=2, markersize=6, color='blue')
-        
-        ax.grid(True, alpha=0.3)
-        
-        ax.fill_between(x_values, results, alpha=0.2, color='blue')
-        
-        ax.set_title('Calculation Results Over Time', fontsize=16, fontweight='bold')
-        ax.set_xlabel('Calculation # (in chronological order)', fontsize=12)
-        ax.set_ylabel('Result Value', fontsize=12)
-        
-        if len(results) <= 20:
-            ax.set_xticks(x_values)
-        else:
-            step = max(1, len(results) // 10)
-            ax.set_xticks(x_values[::step])
-        
-        if len(results) <= 15:
-            for i, value in enumerate(results, 1):
-                ax.annotate(f'{value:.2f}', (i, value), 
-                           textcoords="offset points", xytext=(0, 10), 
-                           ha='center', fontsize=8)
-        
-        plt.tight_layout()
+        step = max(1, len(results) // 10)
+        ax.set_xticks(x[::step])
+        ax.set_xticklabels([str(i) for i in x[::step]], fontsize=8)
+
+    ax.set_xlabel('Calculation #', fontsize=10, color=SOFT, labelpad=10)
+    ax.set_ylabel('Result Value',  fontsize=10, color=SOFT, labelpad=10)
+
+
+    fig.text(0.08, 0.93, 'Calculation Results Over Time',
+             fontsize=14, fontweight='bold', color=WHITE)
+    fig.text(0.08, 0.885,
+             f'Session  ·  {len(results)} calculation{"s" if len(results) != 1 else ""}  '
+             f'·  avg {avg:.4g}  ·  '
+             f'min {min(results):g}  ·  max {max(results):g}',
+             fontsize=8.5, color=MUTED)
     
+    leg_items = [
+        mpatches.Patch(color=GREEN, label='Result'),
+        mpatches.Patch(color=AMBER, label='Rolling avg (3)'),
+        mpatches.Patch(color=MUTED, label=f'Mean: {avg:.4g}'),
+    ]
+    ax.legend(handles=leg_items, loc='upper left', frameon=True,
+              facecolor=CARD, edgecolor='#2a2a2a', labelcolor=SOFT,
+              fontsize=8.5, borderpad=0.9, handlelength=1.4)
+
     buf = io.BytesIO()
-    plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
+    plt.savefig(buf, format='png', dpi=130, bbox_inches='tight', facecolor=BG)
     buf.seek(0)
     plt.close(fig)
-    
     return send_file(buf, mimetype='image/png')
 
 @app.route('/stats')
