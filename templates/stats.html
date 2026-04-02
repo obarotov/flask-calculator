@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Statistics - Scientific Calculator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --spotify-black: #121212;
+            --spotify-dark-grey: #181818;
+            --spotify-light-grey: #282828;
+            --spotify-green: #1DB954;
+            --spotify-white: #FFFFFF;
+            --spotify-text-muted: #b3b3b3;
+        }
+
+        * {
+            font-family: 'Inter', sans-serif !important;
+        }
+
+        body {
+            background-color: var(--spotify-black);
+            color: var(--spotify-white);
+            letter-spacing: -0.02em;
+        }
+
+        .navbar {
+            background-color: #000000 !important;
+            padding: 1.2rem 2rem;
+        }
+
+        .nav-link {
+            color: var(--spotify-text-muted) !important;
+            font-weight: 700;
+            font-size: 0.9rem;
+            transition: 0.2s;
+            margin-right: 20px;
+        }
+
+        .nav-link:hover {
+            color: var(--spotify-green) !important;
+        }
+
+        .nav-link.active {
+            color: var(--spotify-white) !important;
+        }
+
+        h1 {
+            font-weight: 800;
+            font-size: 3rem;
+            margin: 40px 0;
+            letter-spacing: -0.04em;
+        }
+
+        .stat-card {
+            background-color: var(--spotify-dark-grey);
+            border: none;
+            border-radius: 10px;
+            padding: 30px;
+            transition: background-color 0.3s ease;
+            height: 100%;
+        }
+
+        .stat-card:hover {
+            background-color: var(--spotify-light-grey);
+        }
+
+        .stat-label {
+            color: var(--spotify-text-muted);
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 10px;
+        }
+
+        .stat-value {
+            color: var(--spotify-green);
+            font-size: 3.5rem;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+
+        .secondary-value {
+            font-size: 1.8rem;
+            color: var(--spotify-white);
+            font-weight: 700;
+        }
+
+        .insight-section {
+            background-color: var(--spotify-dark-grey);
+            border-radius: 10px;
+            padding: 25px;
+            margin-top: 30px;
+            border-left: 5px solid var(--spotify-green);
+        }
+
+        .btn-spotify {
+            background-color: var(--spotify-green);
+            color: #000;
+            font-weight: 700;
+            border-radius: 500px;
+            padding: 12px 35px;
+            border: none;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            transition: 0.2s;
+        }
+
+        .btn-spotify:hover {
+            background-color: #1ed760;
+            transform: scale(1.03);
+            color: #000;
+        }
+
+        .live-icon {
+            font-size: 5rem;
+            color: var(--spotify-green);
+            margin-bottom: 25px;
+            display: inline-block;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .chart-container {
+            background-color: var(--spotify-dark-grey);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .chart-container img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+
+        .chart-title {
+            color: var(--spotify-text-muted);
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg">
+        <div class="container-fluid">
+            <div class="navbar-nav">
+                <a class="nav-link active" href="/stats">Stats</a>
+                <a class="nav-link" href="/">Calculator</a>
+                <a class="nav-link" href="/converter">Converter</a>
+                <a class="nav-link" href="/history">History</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        {% if stats.total_calculations == 0 %}
+        <div class="text-center py-5 mt-5">
+            <i class="bi bi-activity live-icon"></i>
+            <h1>Calculate to see data</h1>
+            <p class="text-muted mb-4 fs-5">Calculate to analyze.</p>
+            <a href="/" class="btn btn-spotify">OPEN CALCULATOR</a>
+        </div>
+        {% else %}
+        
+        <h1>Data Summary</h1>
+        
+        <div class="chart-container">
+            <div class="chart-title">Results Over Time</div>
+            <img src="{{ url_for('stats_chart') }}" alt="Calculation Results Chart">
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-md-8">
+                <div class="stat-card">
+                    <div class="stat-label">Total Operations</div>
+                    <div class="stat-value">{{ stats.total_calculations }}</div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-label">Top Operator</div>
+                    <div class="stat-value text-white">{{ stats.most_used_operation }}</div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="stat-card text-center">
+                    <div class="stat-label">Average Output</div>
+                    <div class="secondary-value">{{ stats.average_result }}</div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="stat-card text-center">
+                    <div class="stat-label">Peak Value</div>
+                    <div class="secondary-value">{{ stats.largest_result }}</div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="stat-card text-center">
+                    <div class="stat-label">Floor Value</div>
+                    <div class="secondary-value">{{ stats.smallest_result }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="insight-section d-flex justify-content-between align-items-center flex-wrap">
+            <div class="me-3">
+                <span class="stat-label" style="color: var(--spotify-green)">Live Diagnostics</span>
+                <p class="mb-0 fs-5 mt-1">
+                    {% if stats.total_calculations > 10 %}
+                        Analysis complete. 
+                        {% if stats.most_used_operation == '+' %}
+                            You are performing frequent additive computations.
+                        {% elif stats.most_used_operation == '*' %}
+                            You are scaling values at a high frequency.
+                        {% endif %}
+                    {% else %}
+                        Collecting more data for accurate trend reporting.
+                    {% endif %}
+                </p>
+            </div>
+            <a href="/" class="btn btn-spotify mt-3 mt-md-0">New Calculation</a>
+        </div>
+        {% endif %}
+    </div>
+
+</body>
+</html>

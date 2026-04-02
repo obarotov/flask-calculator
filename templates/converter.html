@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Converter — Scientific Calculator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --sp-black:      #121212;
+            --sp-dark:       #181818;
+            --sp-card:       #282828;
+            --sp-hover:      #3E3E3E;
+            --sp-green:      #1DB954;
+            --sp-green-glow: rgba(29, 185, 84, 0.25);
+            --sp-muted:      #b3b3b3;
+            --sp-white:      #FFFFFF;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--sp-black);
+            color: var(--sp-white);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: #000 !important;
+            padding: 1.1rem 2rem;
+            border-bottom: 1px solid #282828;
+        }
+        .nav-link {
+            color: var(--sp-muted) !important;
+            font-weight: 700;
+            font-size: 0.85rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-right: 24px;
+            transition: color 0.2s;
+            padding: 0 !important;
+        }
+        .nav-link:hover { color: var(--sp-white) !important; }
+        .nav-link.active { color: var(--sp-white) !important; border-bottom: 2px solid var(--sp-green); padding-bottom: 2px !important; }
+
+        .page-wrap {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 3rem 1.5rem 5rem;
+        }
+
+        .page-title {
+            font-size: clamp(2.2rem, 6vw, 3.5rem);
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            margin-bottom: 0.3rem;
+        }
+        .page-sub {
+            color: var(--sp-muted);
+            font-size: 0.95rem;
+            font-weight: 500;
+            margin-bottom: 2.8rem;
+        }
+
+        .category-row {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 2.5rem;
+            flex-wrap: wrap;
+        }
+        .cat-btn {
+            background: var(--sp-card);
+            color: var(--sp-muted);
+            border: none;
+            border-radius: 500px;
+            padding: 0.55rem 1.4rem;
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.03em;
+            cursor: pointer;
+            transition: all 0.18s;
+            text-transform: uppercase;
+        }
+        .cat-btn:hover { background: var(--sp-hover); color: var(--sp-white); }
+        .cat-btn.active {
+            background: var(--sp-green);
+            color: #000;
+        }
+
+        .converter-card {
+            background: var(--sp-dark);
+            border-radius: 16px;
+            padding: 2rem;
+        }
+
+        .field-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--sp-muted);
+            margin-bottom: 0.55rem;
+        }
+
+        .sp-select, .sp-input {
+            width: 100%;
+            background: var(--sp-card) !important;
+            border: 2px solid transparent;
+            color: var(--sp-white) !important;
+            border-radius: 8px;
+            padding: 0.85rem 1rem;
+            font-size: 0.95rem;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            appearance: none;
+            -webkit-appearance: none;
+            outline: none;
+        }
+        .sp-select:focus, .sp-input:focus {
+            border-color: var(--sp-green);
+            box-shadow: 0 0 0 3px var(--sp-green-glow);
+        }
+        .sp-select option { background: #282828; color: #fff; }
+        .sp-input::placeholder { color: #535353; }
+
+        .select-wrap {
+            position: relative;
+        }
+        .select-wrap::after {
+            content: '\F282';
+            font-family: 'bootstrap-icons';
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--sp-muted);
+            pointer-events: none;
+            font-size: 0.8rem;
+        }
+
+        .divider-arrow {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 0.9rem;
+        }
+        .divider-arrow i {
+            color: var(--sp-green);
+            font-size: 1.4rem;
+        }
+
+        .btn-convert {
+            background: var(--sp-green);
+            color: #000;
+            font-weight: 800;
+            font-size: 0.85rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            border: none;
+            border-radius: 500px;
+            padding: 1rem 3rem;
+            transition: all 0.18s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .btn-convert:hover {
+            background: #1ed760;
+            transform: scale(1.04);
+            box-shadow: 0 6px 24px var(--sp-green-glow);
+            color: #000;
+        }
+        .btn-convert:active { transform: scale(0.98); }
+
+        .result-section {
+            margin-top: 2rem;
+            background: var(--sp-card);
+            border-radius: 12px;
+            padding: 1.8rem 2rem;
+            border-left: 4px solid var(--sp-green);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .result-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--sp-muted);
+            margin-bottom: 0.4rem;
+        }
+        .result-value {
+            font-size: clamp(2rem, 6vw, 3rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: var(--sp-green);
+            line-height: 1.1;
+        }
+        .result-badge {
+            background: #000;
+            border-radius: 500px;
+            padding: 0.5rem 1.2rem;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--sp-muted);
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+        }
+        .result-badge span { color: var(--sp-green); }
+
+        .error-section {
+            margin-top: 2rem;
+            background: rgba(220, 53, 69, 0.08);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            border-left: 4px solid #dc3545;
+        }
+        .error-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em; color: #f87171; margin-bottom: 0.4rem; }
+        .error-msg { font-size: 1.1rem; font-weight: 600; color: #f87171; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg">
+    <div class="container-fluid px-0">
+        <div class="navbar-nav">
+            <a class="nav-link" href="/stats">Stats</a>
+            <a class="nav-link" href="/">Calculator</a>
+            <a class="nav-link active" href="/converter">Converter</a>
+            <a class="nav-link" href="/history">History</a>
+        </div>
+    </div>
+</nav>
+
+<div class="page-wrap">
+
+    {% set selected_category = request.form.get('category', 'length') %}
+    {% set selected_from     = request.form.get('from_unit', '') %}
+    {% set selected_to       = request.form.get('to_unit', '') %}
+
+    {% set unit_map = {
+        'length':      ['meters', 'kilometers', 'miles', 'feet', 'inches'],
+        'temperature': ['celsius', 'fahrenheit', 'kelvin'],
+        'weight':      ['kilograms', 'grams', 'pounds', 'ounces']
+    } %}
+
+    {% set abbr = {
+        'meters': 'm', 'kilometers': 'km', 'miles': 'mi', 'feet': 'ft',
+        'inches': 'in', 'celsius': '°C', 'fahrenheit': '°F', 'kelvin': 'K',
+        'kilograms': 'kg', 'grams': 'g', 'pounds': 'lb', 'ounces': 'oz'
+    } %}
+
+    {% set cat_labels = {
+        'length': '📏 Length',
+        'temperature': '🌡️ Temperature',
+        'weight': '⚖️ Weight'
+    } %}
+
+    <div class="page-title">Converter</div>
+    <div class="page-sub">Precision unit conversions — powered by science</div>
+
+    <form method="POST">
+        <div class="category-row">
+            {% for cat in ['length', 'temperature', 'weight'] %}
+            <button type="submit" name="category" value="{{ cat }}"
+                class="cat-btn {% if selected_category == cat %}active{% endif %}">
+                {{ cat_labels[cat] }}
+            </button>
+            {% endfor %}
+        </div>
+
+        <div class="converter-card">
+            <div class="row align-items-end g-3">
+                <div class="col-md-5">
+                    <div class="field-label">From</div>
+                    <div class="select-wrap">
+                        <select name="from_unit" class="sp-select">
+                            {% for unit in unit_map[selected_category] %}
+                            <option value="{{ unit }}" {% if selected_from == unit %}selected{% endif %}>
+                                {{ unit.capitalize() }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col-md-2 divider-arrow">
+                    <i class="bi bi-arrow-right"></i>
+                </div>
+
+                <div class="col-md-5">
+                    <div class="field-label">To</div>
+                    <div class="select-wrap">
+                        <select name="to_unit" class="sp-select">
+                            {% for unit in unit_map[selected_category] %}
+                            <option value="{{ unit }}" {% if selected_to == unit %}selected{% endif %}>
+                                {{ unit.capitalize() }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="field-label">Value</div>
+                    <input type="number" step="any" name="value" class="sp-input"
+                        placeholder="Enter a number..."
+                        value="{{ request.form.get('value', '') }}" required>
+                </div>
+            </div>
+
+            <div class="mt-4 d-flex justify-content-end">
+                <button type="submit" class="btn-convert">
+                    <i class="bi bi-arrow-repeat"></i> Convert
+                </button>
+            </div>
+
+            {% if result is defined and result != none %}
+            <div class="result-section">
+                <div>
+                    <div class="result-label"><i class="bi bi-lightning-charge-fill me-1"></i> Result</div>
+                    <div class="result-value">{{ result }}</div>
+                </div>
+                <div class="result-badge">
+                    <span>{{ abbr.get(selected_from, selected_from) }}</span>
+                    &nbsp;→&nbsp;
+                    <span>{{ abbr.get(selected_to, selected_to) }}</span>
+                </div>
+            </div>
+            {% elif result is defined and result == none %}
+            <div class="error-section">
+                <div class="error-label"><i class="bi bi-exclamation-triangle-fill me-1"></i> Error</div>
+                <div class="error-msg">Invalid conversion or unsupported unit combination.</div>
+            </div>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+</body>
+</html>
