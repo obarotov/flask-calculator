@@ -1,53 +1,35 @@
 # 🧮 Flask Scientific Calculator
 
 A web-based **scientific calculator** built using **Flask** and **Object-Oriented Programming (OOP)** principles.
-This project demonstrates clean architecture, error handling, and file-based history tracking.
+This project demonstrates clean architecture, session-based history, unit conversion, REST API, and file-based data storage.
 
----
+# Flask Scientific Calculator
 
-## Features
+A web-based scientific calculator built with Flask and OOP principles.
 
-* Basic operations: `+`, `-`, `*`, `/`
-* Scientific operations:
+## How to Run
 
-  * Square root (`sqrt`)
-  * Power (`pow`)
-  * Trigonometry (`sin`, `cos`, `tan`)
-  * Logarithms (`log`, `log10`)
-* Error handling (invalid input, math errors, server errors)
-* Calculation history stored in a file
-* Clean OOP-based structure
-* Custom error pages (404, 500)
-
-## 📁 Project Structure
-
-```
-flask_calculator/
-│
-├── app.py
-├── calculator.py
-├── history_manager.py
-├── history.txt
-└── templates/
-    ├── index.html
-    ├── history.html
-    ├── 404.html
-    └── 500.html
+```bash
+uv add  matplotlib
+python app.py
 ```
 
-### 🔹 Responsibilities
+Open `http://127.0.0.1:5000` in your browser.
 
-* `app.py` → Flask routes only
-* `calculator.py` → All math logic
-* `history_manager.py` → File handling
-* `templates/` → Frontend UI
+## What was built
 
----
+- ** 1** — OOP calculator with basic and scientific operations
+- ** 2** — File-based history tracking and stats page with chart
+- ** 3** — Session support, each user gets their own history file
+- ** 4** — REST API endpoint `POST /api/calculate`
 
-#### Supported Operations:
+## API Screenshots
+![Test 1](screenshots/test1.png)
 
-```
-['+', '-', '*', '/', 'sqrt', 'pow', 'sin', 'cos', 'tan', 'log', 'log10']
-```
+![Test 2](screenshots/test2.png)
 
----
+![Test 3](screenshots/test3.png)
+
+![Test 4](screenshots/test4.png)
+
+![Error case](screenshots/error.png)
