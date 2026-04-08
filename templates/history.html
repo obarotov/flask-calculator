@@ -21,24 +21,25 @@
     <div class="container">
         <div class="header">
             <h1>History</h1>
+
             {% if entries %}
-            <form action="{{ url_for('clear_session') }}" method="POST">
-                <button class="btn">Clear All</button>
-            </form>
+            <a href="{{ url_for('clear_session') }}" class="btn">Clear All</a>
             {% endif %}
         </div>
 
         <div class="history-card">
-            {% for entry in entries %}
-            <div class="item">
-                <span class="exp">{{ entry.expression }}</span>
-                <span class="res"> {{ entry.result }}</span>
-            </div>
+            {% if entries %}
+                {% for row in entries %}
+                <div class="item">
+                    <span class="exp">{{ row.expression }}</span>
+                    <span class="res">{{ row.result }}</span>
+                </div>
+                {% endfor %}
             {% else %}
-            <div class="empty">No calculations yet.</div>
-            {% endfor %}
+                <div class="empty">No calculations found in history.</div>
+            {% endif %}
         </div>
-        
+
         <a href="{{ url_for('index') }}" class="back">← Back to Calculator</a>
     </div>
 </body>
