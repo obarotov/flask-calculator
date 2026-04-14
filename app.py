@@ -8,12 +8,14 @@ from flask import Flask, render_template, request, redirect, url_for, session, s
 from calculator import Calculator
 from history_manager import HistoryManager
 from converter import UnitConverter
+from database import Database
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
 calc = Calculator()
 unit_converter = UnitConverter()
+db = Database()
 
 @app.before_request
 def ensure_session_id():
@@ -41,8 +43,13 @@ def index():
             expression = calc.format_expression(operation, num1, num2)
 
             if result is not None:
-                manager = HistoryManager(session['session_id'])
-                manager.save(expression, result)
+                db.save_calculation(
+                    expression, 
+                    result, 
+                    operation,
+                    source='web',
+                    user_identifier=session.get('session_id', 'anonymous')
+                )
 
         except ZeroDivisionError:
             error = "Division by zero is not allowed."
@@ -98,9 +105,14 @@ def api_calculate():
             expression = calc.format_expression(operation, num1, num2)
             
             if result is not None:
-                manager = HistoryManager(session['session_id'])
                 api_expression = f"[API] {expression}"
-                manager.save(api_expression, result)
+                db.save_calculation(
+                    api_expression, 
+                    result, 
+                    operation,
+                    source='web',
+                    user_identifier=request.remote_addr
+                )
             
             return jsonify({
                 "success": True,
@@ -132,25 +144,37 @@ def api_calculate():
 
 @app.route('/history')
 def history_page():
-    manager = HistoryManager(session['session_id'])
-    entries = manager.load()
-    return render_template('history.html', entries=entries)
+    source_filter = request.args.get('source', 'all')
+    if source_filter != 'all':
+        entries = db.get_all(source=source_filter)
+    else:
+        entries = db.get_all()
+    return render_template('history.html', entries=entries, source_filter=source_filter)
 
 @app.route('/clear-session')
 def clear_session():
     if 'session_id' in session:
-        manager = HistoryManager(session['session_id'])
-        manager.clear()
+        db.clear_all()
         session.clear()
     return redirect(url_for('index'))
+
+@app.route('/delete/<int:id>')
+def delete(id):
+    db.delete_by_id(id)
+    return redirect(url_for('history_page'))
 
 @app.route('/stats/chart')
 def stats_chart():
     import matplotlib.patches as mpatches
     import numpy as np
 
+    source_filter = request.args.get('source', 'all')
     manager = HistoryManager(session['session_id'])
-    entries = manager.load()
+    
+    if source_filter != 'all':
+        entries = db.get_all(source=source_filter)
+    else:
+        entries = db.get_all()
 
     results = []
     for entry in entries:
@@ -162,11 +186,14 @@ def stats_chart():
     BG    = '#0a0a0a'
     CARD  = '#161616'
     GREEN = '#1DB954'
+    BLUE  = '#0088cc'
     AMBER = '#f59e0b'
     MUTED = '#6b6b6b'
     SOFT  = '#a0a0a0'
     WHITE = '#f0f0f0'
     GRID  = '#1e1e1e'
+    
+    line_color = BLUE if source_filter == 'telegram' else GREEN
 
     fig = plt.figure(figsize=(12, 6), facecolor=BG)
     if not results:
@@ -181,7 +208,9 @@ def stats_chart():
         ax.text(0.5, 0.42, 'Make some calculations and come back!',
                 ha='center', va='center', transform=ax.transAxes,
                 fontsize=10, color=MUTED)
-        fig.text(0.08, 0.93, 'Calculation Results Over Time',
+        
+        title_text = f'Calculation Results - {source_filter.capitalize()}' if source_filter != 'all' else 'Calculation Results Over Time'
+        fig.text(0.08, 0.93, title_text,
                  fontsize=14, fontweight='bold', color=WHITE)
 
         buf = io.BytesIO()
@@ -190,8 +219,8 @@ def stats_chart():
         plt.close(fig)
         return send_file(buf, mimetype='image/png')
 
-    x       = list(range(1, len(results) + 1))
-    avg     = sum(results) / len(results)
+    x = list(range(1, len(results) + 1))
+    avg = sum(results) / len(results)
     rolling = [
         sum(results[max(0, i - 2):i + 1]) / len(results[max(0, i - 2):i + 1])
         for i in range(len(results))
@@ -199,13 +228,13 @@ def stats_chart():
 
     ax = fig.add_axes([0.08, 0.14, 0.88, 0.72], facecolor=CARD)
 
-    ax.fill_between(x, results, alpha=0.15, color=GREEN, linewidth=0)
+    ax.fill_between(x, results, alpha=0.15, color=line_color, linewidth=0)
 
-    ax.plot(x, results, color=GREEN, linewidth=2.5, zorder=4,
+    ax.plot(x, results, color=line_color, linewidth=2.5, zorder=4,
             solid_capstyle='round')
 
     dot_size = 55 if len(results) <= 30 else 20
-    ax.scatter(x, results, color=GREEN, s=dot_size, zorder=5,
+    ax.scatter(x, results, color=line_color, s=dot_size, zorder=5,
                edgecolors=BG, linewidths=1.8)
 
     ax.plot(x, rolling, color=AMBER, linewidth=1.5,
@@ -216,7 +245,7 @@ def stats_chart():
     ax.annotate(f'{results[-1]:g}',
                 xy=(x[-1], results[-1]),
                 xytext=(7, 0), textcoords='offset points',
-                color=GREEN, fontsize=9, fontweight='bold', va='center')
+                color=line_color, fontsize=9, fontweight='bold', va='center')
 
     if len(results) >= 3:
         max_i = results.index(max(results))
@@ -247,17 +276,19 @@ def stats_chart():
     ax.set_xlabel('Calculation #', fontsize=10, color=SOFT, labelpad=10)
     ax.set_ylabel('Result Value',  fontsize=10, color=SOFT, labelpad=10)
 
-
-    fig.text(0.08, 0.93, 'Calculation Results Over Time',
+    title_text = f'Calculation Results - {source_filter.capitalize()}' if source_filter != 'all' else 'Calculation Results Over Time'
+    fig.text(0.08, 0.93, title_text,
              fontsize=14, fontweight='bold', color=WHITE)
+    
+    source_indicator = '🟢 Web + 🔵 Telegram' if source_filter == 'all' else ('🟢 Web' if source_filter == 'web' else '🔵 Telegram')
     fig.text(0.08, 0.885,
-             f'Session  ·  {len(results)} calculation{"s" if len(results) != 1 else ""}  '
+             f'{source_indicator}  ·  {len(results)} calculation{"s" if len(results) != 1 else ""}  '
              f'·  avg {avg:.4g}  ·  '
              f'min {min(results):g}  ·  max {max(results):g}',
              fontsize=8.5, color=MUTED)
     
     leg_items = [
-        mpatches.Patch(color=GREEN, label='Result'),
+        mpatches.Patch(color=line_color, label='Result'),
         mpatches.Patch(color=AMBER, label='Rolling avg (3)'),
         mpatches.Patch(color=MUTED, label=f'Mean: {avg:.4g}'),
     ]
@@ -273,9 +304,12 @@ def stats_chart():
 
 @app.route('/stats')
 def stats():
-    manager = HistoryManager(session['session_id'])
-    stats_data = manager.get_stats()
-    return render_template('stats.html', stats=stats_data)
+    source_filter = request.args.get('source', 'all')
+    if source_filter != 'all':
+        stats_data = db.get_stats(source=source_filter)
+    else:
+        stats_data = db.get_stats()
+    return render_template('stats.html', stats=stats_data, source_filter=source_filter)
 
 @app.route('/converter', methods=['GET', 'POST'])
 def converter():
@@ -324,6 +358,15 @@ def not_found(e):
 @app.errorhandler(500)
 def server_error(e):
     return render_template('500.html'), 500
+
+@app.route('/test-db')
+def test_db():
+    source_filter = request.args.get('source', 'all')
+    if source_filter != 'all':
+        data = db.get_all(source=source_filter)
+    else:
+        data = db.get_all()
+    return {"data": data}
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -1,93 +1,112 @@
-# database.py (MODIFIED)
-import sqlite3
+# database.py
+import psycopg2
+import psycopg2.extras
+import os
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class Database:
-    def __init__(self, db_path='calculator.db'):
-        self.db_path = db_path
+    def __init__(self):
+        self.conn_params = {
+            'host': os.getenv('DB_HOST', 'localhost'),
+            'database': os.getenv('DB_NAME', 'calculator'),
+            'user': os.getenv('DB_USER', 'postgres'),
+            'password': os.getenv('DB_PASSWORD', '')
+        }
         self.init_db()
     
+    def get_connection(self):
+        return psycopg2.connect(**self.conn_params)
+    
     def init_db(self):
-        """Initialize database with source column"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self.get_connection()
         c = conn.cursor()
         
-        # Check if source column exists, if not add it
-        c.execute("PRAGMA table_info(calculations)")
-        columns = [col[1] for col in c.fetchall()]
-        
-        if 'source' not in columns:
-            try:
-                c.execute("ALTER TABLE calculations ADD COLUMN source TEXT DEFAULT 'web'")
-                c.execute("ALTER TABLE calculations ADD COLUMN user_identifier TEXT")
-                c.execute("ALTER TABLE calculations ADD COLUMN username TEXT")
-            except sqlite3.OperationalError:
-                pass
-        
-        # Create table if it doesn't exist
-        c.execute('''CREATE TABLE IF NOT EXISTS calculations
-                    (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                     expression TEXT NOT NULL,
-                     result REAL NOT NULL,
-                     operation TEXT,
-                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                     source TEXT DEFAULT 'web',
-                     user_identifier TEXT,
-                     username TEXT)''')
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS calculations (
+                id SERIAL PRIMARY KEY,
+                expression TEXT NOT NULL,
+                result FLOAT NOT NULL,
+                operation VARCHAR(50),
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                source VARCHAR(10) DEFAULT 'web',
+                user_identifier TEXT,
+                username TEXT
+            )
+        ''')
         
         conn.commit()
         conn.close()
     
     def save_calculation(self, expression, result, operation, source='web', 
                          user_identifier=None, username=None):
-        """Save calculation with source tracking"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self.get_connection()
         c = conn.cursor()
-        c.execute('''INSERT INTO calculations 
-                    (expression, result, operation, source, user_identifier, username) 
-                    VALUES (?, ?, ?, ?, ?, ?)''',
-                 (expression, result, operation, source, user_identifier, username))
+        
+        c.execute('''
+            INSERT INTO calculations 
+            (expression, result, operation, source, user_identifier, username) 
+            VALUES (%s, %s, %s, %s, %s, %s)
+        ''', (expression, result, operation, source, user_identifier, username))
+        
         conn.commit()
         conn.close()
     
     def get_all(self, source=None):
-        """Get all calculations, optionally filtered by source"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        c = conn.cursor()
+        conn = self.get_connection()
+        c = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         
         if source:
-            c.execute('''SELECT * FROM calculations 
-                        WHERE source = ? 
-                        ORDER BY timestamp DESC''', (source,))
+            c.execute('''
+                SELECT * FROM calculations 
+                WHERE source = %s 
+                ORDER BY timestamp DESC
+            ''', (source,))
         else:
             c.execute('SELECT * FROM calculations ORDER BY timestamp DESC')
         
         rows = c.fetchall()
         conn.close()
+        
         return [dict(row) for row in rows]
     
     def get_stats(self, source=None):
-        """Get statistics with source filter"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self.get_connection()
         c = conn.cursor()
         
-        query = 'SELECT COUNT(*), AVG(result), MIN(result), MAX(result) FROM calculations'
-        params = []
-        
         if source:
-            query += ' WHERE source = ?'
-            params = [source]
+            c.execute('''
+                SELECT COUNT(*), AVG(result), MIN(result), MAX(result) 
+                FROM calculations WHERE source = %s
+            ''', (source,))
+        else:
+            c.execute('''
+                SELECT COUNT(*), AVG(result), MIN(result), MAX(result) 
+                FROM calculations
+            ''')
         
-        c.execute(query, params)
-        count, avg, min_val, max_val = c.fetchone()
+        row = c.fetchone()
         conn.close()
         
         return {
-            'count': count or 0,
-            'avg': avg or 0,
-            'min': min_val or 0,
-            'max': max_val or 0
+            'count': row[0] or 0,
+            'avg': float(row[1]) if row[1] else 0,
+            'min': float(row[2]) if row[2] else 0,
+            'max': float(row[3]) if row[3] else 0
         }
     
-    # Keep your existing methods (clear_all, delete_by_id, etc.)
+    def clear_all(self):
+        conn = self.get_connection()
+        c = conn.cursor()
+        c.execute('DELETE FROM calculations')
+        conn.commit()
+        conn.close()
+    
+    def delete_by_id(self, id):
+        conn = self.get_connection()
+        c = conn.cursor()
+        c.execute('DELETE FROM calculations WHERE id = %s', (id,))
+        conn.commit()
+        conn.close()
