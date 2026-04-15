@@ -1,112 +1,176 @@
-# database.py
+import os
 import psycopg2
 import psycopg2.extras
-import os
-from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
 
+
 class Database:
-    def __init__(self):
-        self.conn_params = {
-            'host': os.getenv('DB_HOST', 'localhost'),
-            'database': os.getenv('DB_NAME', 'calculator'),
-            'user': os.getenv('DB_USER', 'postgres'),
-            'password': os.getenv('DB_PASSWORD', '')
-        }
-        self.init_db()
-    
-    def get_connection(self):
-        return psycopg2.connect(**self.conn_params)
-    
-    def init_db(self):
-        conn = self.get_connection()
-        c = conn.cursor()
-        
-        c.execute('''
-            CREATE TABLE IF NOT EXISTS calculations (
-                id SERIAL PRIMARY KEY,
-                expression TEXT NOT NULL,
-                result FLOAT NOT NULL,
-                operation VARCHAR(50),
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                source VARCHAR(10) DEFAULT 'web',
-                user_identifier TEXT,
-                username TEXT
-            )
-        ''')
-        
-        conn.commit()
-        conn.close()
-    
-    def save_calculation(self, expression, result, operation, source='web', 
-                         user_identifier=None, username=None):
-        conn = self.get_connection()
-        c = conn.cursor()
-        
-        c.execute('''
-            INSERT INTO calculations 
-            (expression, result, operation, source, user_identifier, username) 
-            VALUES (%s, %s, %s, %s, %s, %s)
-        ''', (expression, result, operation, source, user_identifier, username))
-        
-        conn.commit()
-        conn.close()
-    
-    def get_all(self, source=None):
-        conn = self.get_connection()
-        c = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        
-        if source:
-            c.execute('''
-                SELECT * FROM calculations 
-                WHERE source = %s 
-                ORDER BY timestamp DESC
-            ''', (source,))
-        else:
-            c.execute('SELECT * FROM calculations ORDER BY timestamp DESC')
-        
-        rows = c.fetchall()
-        conn.close()
-        
-        return [dict(row) for row in rows]
-    
-    def get_stats(self, source=None):
-        conn = self.get_connection()
-        c = conn.cursor()
-        
-        if source:
-            c.execute('''
-                SELECT COUNT(*), AVG(result), MIN(result), MAX(result) 
-                FROM calculations WHERE source = %s
-            ''', (source,))
-        else:
-            c.execute('''
-                SELECT COUNT(*), AVG(result), MIN(result), MAX(result) 
-                FROM calculations
-            ''')
-        
-        row = c.fetchone()
-        conn.close()
-        
-        return {
-            'count': row[0] or 0,
-            'avg': float(row[1]) if row[1] else 0,
-            'min': float(row[2]) if row[2] else 0,
-            'max': float(row[3]) if row[3] else 0
-        }
-    
+    def __init__(self): 
+        self._init_db()
+
+    def _get_conn(self):
+        url = os.getenv("DATABASE_URL")
+        if not url:
+            raise RuntimeError("DATABASE_URL is not set in your .env file")
+        return psycopg2.connect(
+            url,
+            cursor_factory=psycopg2.extras.RealDictCursor
+        )
+
+    def _init_db(self):
+        conn = self._get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS calculations (
+                        id              SERIAL PRIMARY KEY,
+                        expression      TEXT NOT NULL,
+                        result          TEXT NOT NULL,
+                        operation       TEXT NOT NULL,
+                        source          TEXT NOT NULL DEFAULT 'web',
+                        user_identifier TEXT NOT NULL DEFAULT 'anonymous',
+                        created_at      TIMESTAMP NOT NULL DEFAULT NOW()
+                    )
+                """)
+
+                # Safe migrations
+                cur.execute("""
+                    ALTER TABLE calculations
+                    ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'web'
+                """)
+                cur.execute("""
+                    ALTER TABLE calculations
+                    ADD COLUMN IF NOT EXISTS user_identifier TEXT NOT NULL DEFAULT 'anonymous'
+                """)
+
+            conn.commit()
+        finally:
+            conn.close()
+
+    def save_calculation(
+        self,
+        expression: str,
+        result,
+        operation: str,
+        source: str = 'web',
+        user_identifier: str = 'anonymous'
+    ):
+        if source not in ('web', 'telegram'):
+            source = 'web'
+
+        conn = self._get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    INSERT INTO calculations
+                    (expression, result, operation, source, user_identifier)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (expression, str(result), operation, source, user_identifier))
+
+            conn.commit()
+        finally:
+            conn.close()
+
+    def get_all(self, source: str = None) -> list[dict]:
+        conn = self._get_conn()
+        try:
+            with conn.cursor() as cur:
+                if source:
+                    cur.execute("""
+                        SELECT *
+                        FROM calculations
+                        WHERE source = %s
+                        ORDER BY id DESC
+                    """, (source,))
+                else:
+                    cur.execute("""
+                        SELECT *
+                        FROM calculations
+                        ORDER BY id DESC
+                    """)
+
+                return cur.fetchall()
+        finally:
+            conn.close()
+
+    def get_stats(self, source: str = None) -> dict:
+        conn = self._get_conn()
+        try:
+            with conn.cursor() as cur:
+                where = "WHERE source = %s" if source else ""
+                params = (source,) if source else ()
+
+                # Total
+                cur.execute(f"""
+                    SELECT COUNT(*) AS total
+                    FROM calculations
+                    {where}
+                """, params)
+                total = cur.fetchone()["total"]
+
+                # By operation
+                cur.execute(f"""
+                    SELECT operation, COUNT(*) AS count
+                    FROM calculations
+                    {where}
+                    GROUP BY operation
+                    ORDER BY count DESC
+                """, params)
+                by_op = cur.fetchall()
+
+                # By source
+                cur.execute(f"""
+                    SELECT source, COUNT(*) AS count
+                    FROM calculations
+                    {where}
+                    GROUP BY source
+                """, params)
+                by_source = cur.fetchall()
+
+                # ✅ FIXED numeric stats
+                numeric_where = (
+                    "WHERE source = %s AND " if source else "WHERE "
+                ) + "result::TEXT ~ '^-?[0-9]+(\\.[0-9]+)?$'"
+
+                cur.execute(f"""
+                    SELECT
+                        AVG(result::NUMERIC) AS avg,
+                        MIN(result::NUMERIC) AS min,
+                        MAX(result::NUMERIC) AS max
+                    FROM calculations
+                    {numeric_where}
+                """, params)
+
+                numeric = cur.fetchone()
+
+            return {
+                "total": total,
+                "by_op": list(by_op),
+                "by_source": list(by_source),
+                "avg": float(numeric["avg"]) if numeric["avg"] is not None else None,
+                "min": float(numeric["min"]) if numeric["min"] is not None else None,
+                "max": float(numeric["max"]) if numeric["max"] is not None else None,
+            }
+
+        finally:
+            conn.close()
+
+    def delete_by_id(self, id: int):
+        conn = self._get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM calculations WHERE id = %s", (id,))
+            conn.commit()
+        finally:
+            conn.close()
+
     def clear_all(self):
-        conn = self.get_connection()
-        c = conn.cursor()
-        c.execute('DELETE FROM calculations')
-        conn.commit()
-        conn.close()
-    
-    def delete_by_id(self, id):
-        conn = self.get_connection()
-        c = conn.cursor()
-        c.execute('DELETE FROM calculations WHERE id = %s', (id,))
-        conn.commit()
-        conn.close()
+        conn = self._get_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM calculations")
+            conn.commit()
+        finally:
+            conn.close()
