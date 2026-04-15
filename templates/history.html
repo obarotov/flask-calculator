@@ -5,34 +5,57 @@
     <title>History</title>
     <style>
         body { background: #0f0f0f; color: #eee; font-family: sans-serif; display: flex; justify-content: center; padding: 2rem; }
-        .container { width: 100%; max-width: 500px; }
+        .container { width: 100%; max-width: 600px; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
         .history-card { background: #1a1a1a; border-radius: 12px; border: 1px solid #333; overflow: hidden; }
-        .item { padding: 1rem; border-bottom: 1px solid #333; display: flex; justify-content: space-between; }
+        .item { padding: 1rem; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
         .item:last-child { border-bottom: none; }
-        .exp { color: #fff; font-family: monospace; }
-        .res { color: #1DB954; font-weight: bold; }
+        .item.web { border-left: 3px solid #1DB954; }
+        .item.telegram { border-left: 3px solid #0088cc; }
+        .left { display: flex; align-items: center; gap: 0.6rem; flex: 1; min-width: 0; }
+        .badge { font-size: 0.65rem; font-weight: bold; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+        .badge.web { background: #1a3d2a; color: #1DB954; }
+        .badge.telegram { background: #0a2a3d; color: #0088cc; }
+        .exp { color: #fff; font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .res { color: #1DB954; font-weight: bold; white-space: nowrap; }
+        .item.telegram .res { color: #0088cc; }
         .empty { padding: 2rem; text-align: center; color: #555; }
         .btn { color: #ff4444; background: none; border: 1px solid #442222; padding: 5px 10px; border-radius: 6px; cursor: pointer; text-decoration: none; font-size: 0.8rem; }
+        .del { color: #ff4444; background: none; border: none; cursor: pointer; font-size: 1rem; padding: 0 4px; opacity: 0.5; transition: opacity 0.2s; }
+        .del:hover { opacity: 1; }
         .back { color: #888; text-decoration: none; font-size: 0.9rem; margin-top: 1rem; display: block; }
+        .filter { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+        .filter a { text-decoration: none; padding: 4px 12px; border-radius: 6px; font-size: 0.8rem; border: 1px solid #333; color: #888; }
+        .filter a.active { border-color: #555; color: #eee; background: #222; }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>History</h1>
-
             {% if entries %}
             <a href="{{ url_for('clear_session') }}" class="btn">Clear All</a>
             {% endif %}
         </div>
 
+        <div class="filter">
+            <a href="{{ url_for('history_page') }}" class="{{ 'active' if source_filter == 'all' }}">All</a>
+            <a href="{{ url_for('history_page', source='web') }}" class="{{ 'active' if source_filter == 'web' }}">🟢 Web</a>
+            <a href="{{ url_for('history_page', source='telegram') }}" class="{{ 'active' if source_filter == 'telegram' }}">🔵 Telegram</a>
+        </div>
+
         <div class="history-card">
             {% if entries %}
                 {% for row in entries %}
-                <div class="item">
-                    <span class="exp">{{ row.expression }}</span>
+                <div class="item {{ row.source if row.source in ['web', 'telegram'] else 'web' }}">
+                    <div class="left">
+                        <span class="badge {{ row.source if row.source in ['web', 'telegram'] else 'web' }}">
+                            {{ '🔵 TG' if row.source == 'telegram' else '🟢 WEB' }}
+                        </span>
+                        <span class="exp">{{ row.expression }}</span>
+                    </div>
                     <span class="res">{{ row.result }}</span>
+                    <a href="{{ url_for('delete', id=row.id) }}" class="del" title="Delete">✕</a>
                 </div>
                 {% endfor %}
             {% else %}
