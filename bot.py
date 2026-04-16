@@ -12,7 +12,7 @@ from converter import UnitConverter
 
 load_dotenv()
 
-BOT_TOKEN = os.getenv("BOT_TOKEN", "8793911122:AAHfqJZF89Ypefcot_rkTL1dppsnNujl39s")
+BOT_TOKEN = os.getenv("BOT_TOKEN","BOT TOKEN HERE")
 
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode="HTML", num_threads=4)
 calc = Calculator()
